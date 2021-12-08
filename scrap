@@ -1,0 +1,26 @@
+===============scrap code====================
+
+import mysql.connector
+
+def connect():
+
+    dataBase = mysql.connector.connect(
+        host="database-1.cml8g5orx21z.us-east-1.rds.amazonaws.com",
+        user="admin",
+        passwd="J3bpAdxfMbtN1vMlb48J"
+    )
+
+    print(dataBase)
+
+    # Disconnecting from the server
+    dataBase.close()
+
+
+if __name__ == '__main__':
+
+    connect()
+    print("-- done")
+
+# notes
+# make database public facing
+# security group: inbound: MySQL/Aurora, TCP, 3306, 0.0.0.0/0
