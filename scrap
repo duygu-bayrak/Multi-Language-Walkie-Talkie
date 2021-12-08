@@ -1,5 +1,3 @@
-===============scrap code====================
-
 import mysql.connector
 
 def connect():
@@ -7,10 +5,43 @@ def connect():
     dataBase = mysql.connector.connect(
         host="database-1.cml8g5orx21z.us-east-1.rds.amazonaws.com",
         user="admin",
-        passwd="J3bpAdxfMbtN1vMlb48J"
+        passwd="J3bpAdxfMbtN1vMlb48J",        database="db1"
     )
 
     print(dataBase)
+
+    # preparing a cursor object
+    cursorObject = dataBase.cursor()
+
+    # creating database
+    # cursorObject.execute("CREATE DATABASE db1")
+
+    # creating table
+    studentRecord = """CREATE TABLE STUDENT (
+                       NAME  VARCHAR(20) NOT NULL,
+                       BRANCH VARCHAR(50),
+                       ROLL INT NOT NULL,
+                       SECTION VARCHAR(5),
+                       AGE INT
+                       )"""
+
+    # table created
+    # cursorObject.execute(studentRecord)
+
+    sql = "INSERT INTO STUDENT (NAME, BRANCH, ROLL, SECTION, AGE)\
+    VALUES (%s, %s, %s, %s, %s)"
+    val = ("Ram", "CSE", "85", "B", "19")
+
+    cursorObject.execute(sql, val)
+    dataBase.commit()
+
+    query = "SELECT NAME, ROLL FROM STUDENT"
+    cursorObject.execute(query)
+
+    myresult = cursorObject.fetchall()
+
+    for x in myresult:
+        print(x)
 
     # Disconnecting from the server
     dataBase.close()
@@ -24,3 +55,14 @@ if __name__ == '__main__':
 # notes
 # make database public facing
 # security group: inbound: MySQL/Aurora, TCP, 3306, 0.0.0.0/0
+
+# (un)-comment stuff to set up database/table
+# first, create a database db1
+# then, create a table
+# then, add rows
+# ---------example result----------- 
+# <mysql.connector.connection_cext.CMySQLConnection object at 0x0000020DF1DB3188>
+# ('Ram', 85)
+# ('Ram', 85)
+# ('Ram', 85)
+# -- done
