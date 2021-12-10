@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An AWS Serverless Specification template describing your function.
+Resources:
+  ParseTranscription:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.7
+      CodeUri: .
+      Description: ''
+      MemorySize: 128
+      Timeout: 3
+      Role: 'arn:aws:iam::760450528868:role/LabRole'
+      Events:
+        CloudWatchEvent1:
+          Type: CloudWatchEvent
+          Properties:
+            Pattern:
+              detail-type:
+                - Transcribe Job State Change
+              source:
+                - aws.transcribe
+              detail:
+                TranscriptionJobStatus:
+                  - COMPLETED
+      Layers:
+        - 'arn:aws:lambda:us-east-1:760450528868:layer:pymysql:1'
