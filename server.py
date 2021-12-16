@@ -39,6 +39,8 @@ class ChatServer:
                 self.clients_list.remove(client)
                 print('client list:')
                 self.print_clients()
+                self.broadcast_to_all_clients(so,msg="!USER_LEFT " + str(ip) + ":" + str(port))# TODO: create a dictionary to keep track of socket -> users(name)
+                
             if not incoming_buffer:
                 break
             self.last_received_message = incoming_buffer.decode('utf-8')
@@ -46,11 +48,14 @@ class ChatServer:
         so.close()
     
     # broadcast the message to all clients
-    def broadcast_to_all_clients(self, senders_socket):
+    def broadcast_to_all_clients(self, senders_socket, msg=None):
         for client in self.clients_list:
             socket, (ip, port) = client
             if socket is not senders_socket:
-                socket.sendall(self.last_received_message.encode('utf-8'))
+                if msg is not None:
+                    socket.sendall(msg.encode('utf-8'))
+                else:
+                    socket.sendall(self.last_received_message.encode('utf-8'))
     
     def receive_messages_in_a_new_thread(self):
         while True:
