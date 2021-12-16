@@ -251,3 +251,4 @@ if __name__ == '__main__':
 # TODO NEXT: <---------------------------
 # TODO: server.py: send "!USER_LEFT <user>" on socket fail
 # TODO: client -> S3 -> lambda pipleine, ending with lambda sending !DB_UPDATED
+# TODO: add record button/functionality to start the client->s3->lambda pipeline
