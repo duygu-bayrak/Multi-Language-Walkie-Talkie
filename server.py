@@ -18,7 +18,7 @@ class ChatServer:
         self.server_socket = socket.socket(socket.AF_INET,
                                            socket.SOCK_STREAM)  # create a socket using TCP port and ipv4
         local_ip = '0.0.0.0'  # '127.0.0.1'
-        local_ip = '127.0.0.1'
+        # local_ip = '127.0.0.1'
         local_port = 10319
         # this will allow you to immediately restart a TCP server
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -34,8 +34,10 @@ class ChatServer:
         while True:
             incoming_buffer = None
             try:
+                # print('==========TRY==========')
                 incoming_buffer = so.recv(256)  # initialize the buffer
             except:
+                # print('========EXCEPT=========')
                 print('could not receive from', client, '; removing...')
                 self.clients_list.remove(client)
                 print('client list:')
@@ -46,17 +48,37 @@ class ChatServer:
                 break
             self.last_received_message = incoming_buffer.decode('utf-8')
             self.broadcast_to_all_clients(so)  # send to all clients
+        # print('============A========')
         so.close()
+        # print('=============B=========')
     
     # broadcast the message to all clients
     def broadcast_to_all_clients(self, senders_socket, msg=None):
+        # print('----------------')
+        print(self.last_received_message)
+        print(msg)
+        
         for client in self.clients_list:
             socket, (ip, port) = client
             if socket is not senders_socket:
                 if msg is not None:
-                    socket.sendall(msg.encode('utf-8'))
+                    try:
+                        socket.sendall(msg.encode('utf-8'))
+                    except:
+                        # print('couln\'t send')
+                        print('could not broadcast to', client, '; removing...')
+                        self.clients_list.remove(client) # need this because AWS lambda functions are ephermeral
+                        print('client list:')
+                        self.print_clients()
                 else:
-                    socket.sendall(self.last_received_message.encode('utf-8'))
+                    try:
+                        socket.sendall(self.last_received_message.encode('utf-8'))
+                    except:
+                        # print('couldn\'t send')
+                        print('could not broadcast to', client, '; removing...')
+                        self.clients_list.remove(client)
+                        print('client list:')
+                        self.print_clients()
     
     def receive_messages_in_a_new_thread(self):
         while True:
