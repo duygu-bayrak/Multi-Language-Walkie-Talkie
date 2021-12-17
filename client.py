@@ -20,6 +20,7 @@ class GUI:
         self.user = None
         self.connect_to_database()
         self.set_user()
+        self.get_language_table()
         self.refresh() # TODO: insert this line to test query; comment out later
         self.initialize_socket()
         self.initialize_gui()
@@ -51,6 +52,14 @@ class GUI:
         if result:
             self.user = result[0][1] # first result, name column
             print("chatting with user: " + self.user) # columns: id,name
+        return
+    
+    def get_language_table(self):
+        query = "SELECT * from languages"
+        self.cursor.execute(query)
+        result = self.cursor.fetchall() # returns a list
+        for x in result:
+            print(x)
         return
         
     def initialize_socket(self):
