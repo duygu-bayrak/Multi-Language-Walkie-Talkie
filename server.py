@@ -18,6 +18,7 @@ class ChatServer:
         self.server_socket = socket.socket(socket.AF_INET,
                                            socket.SOCK_STREAM)  # create a socket using TCP port and ipv4
         local_ip = '0.0.0.0'  # '127.0.0.1'
+        local_ip = '127.0.0.1'
         local_port = 10319
         # this will allow you to immediately restart a TCP server
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

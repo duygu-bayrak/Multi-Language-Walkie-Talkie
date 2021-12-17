@@ -55,16 +55,18 @@ class GUI:
         
     def initialize_socket(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # initialazing socket with TCP and IPv4
-        remote_ip = 'ec2-100-26-191-230.compute-1.amazonaws.com' # 127.0.0.1'  # IP address
+        remote_ip = 'ec2-52-6-59-53.compute-1.amazonaws.com' # 127.0.0.1'  # IP address
+        remote_ip = '127.0.0.1'
         remote_port = 10319  # TCP port
         try:
             self.client_socket.connect((remote_ip, remote_port))  # connect to the remote server
             self.socket_connected = True
+            print('socket connect success')
         except:
             self.socket_connected = False
             print('socket connect failed')
         else:
-            print('socket connect success')
+            print('done initializing socket')
 
     def initialize_gui(self):  # GUI initializer
         self.root.title("Socket Chat")
@@ -252,3 +254,6 @@ if __name__ == '__main__':
 # TODO: server.py: send "!USER_LEFT <user>" on socket fail
 # TODO: client -> S3 -> lambda pipleine, ending with lambda sending !DB_UPDATED
 # TODO: add record button/functionality to start the client->s3->lambda pipeline
+# TODO: change: auto fill in user name
+# TODO: remove text chat functionality
+# TODO: try Elastic IP address
