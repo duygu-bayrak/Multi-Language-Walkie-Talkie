@@ -27,44 +27,57 @@ class GUI:
         self.listen_for_incoming_messages_in_a_thread()
         
     def connect_to_database(self):
-        self.database = mysql.connector.connect(
-            host="database-1.cml8g5orx21z.us-east-1.rds.amazonaws.com",
-            user="admin",
-            passwd="J3bpAdxfMbtN1vMlb48J", database="db1"
-        )
-        
-        self.cursor = self.database.cursor()
-        
-        # test
-        print('testing connection to database')
-        query = "SELECT * FROM users"
-        self.cursor.execute(query)
-        result = self.cursor.fetchall()
-        for x in result:
-            print(x)
+        try:
+            self.database = mysql.connector.connect(
+                host="database-1.cml8g5orx21z.us-east-1.rds.amazonaws.com",
+                user="admin",
+                passwd="J3bpAdxfMbtN1vMlb48J", database="db1",
+                autocommit=True # must commit to see updated rows
+            )
+            
+            self.cursor = self.database.cursor()
+            
+            # test
+            print('testing connection to database')
+            query = "SELECT * FROM users"
+            self.cursor.execute(query)
+            result = self.cursor.fetchall()
+            for x in result:
+                print(x)
+            self.cursor.close()
+        except:
+            print('could not connect to database')
         return
         
     def set_user(self):
         query = "SELECT * from users WHERE id = " + str(self.userID)
-        self.cursor.execute(query)
-        result = self.cursor.fetchall() # returns a list
-        # print(result)
-        if result:
-            self.user = result[0][1] # first result, name column
-            print("chatting with user: " + self.user) # columns: id,name
+        try:
+            self.cursor = self.database.cursor()
+            self.cursor.execute(query)
+            result = self.cursor.fetchall() # returns a list
+            # print(result)
+            if result:
+                self.user = result[0][1] # first result, name column
+                print("chatting with user: " + self.user) # columns: id,name
+        finally:
+            self.cursor.close()
         return
     
     def get_language_table(self):
         query = "SELECT * from languages"
-        self.cursor.execute(query)
-        result = self.cursor.fetchall() # returns a list
-        for x in result:
-            print(x)
+        try:
+            self.cursor = self.database.cursor()
+            self.cursor.execute(query)
+            result = self.cursor.fetchall() # returns a list
+            for x in result:
+                print(x)
+        finally:
+            self.cursor.close()
         return
         
     def initialize_socket(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # initialazing socket with TCP and IPv4
-        remote_ip = 'ec2-52-6-59-53.compute-1.amazonaws.com' # 127.0.0.1'  # IP address
+        remote_ip = 'ec2-3-86-188-40.compute-1.amazonaws.com' # 127.0.0.1'  # IP address
         # remote_ip = '127.0.0.1'
         remote_port = 10319  # TCP port
         try:
@@ -212,7 +225,7 @@ class GUI:
         self.chat_transcript_area.yview(END)
         return
     
-    def refresh(self, DEBUG=False):
+    def refresh(self, DEBUG=True):
         
         def parse_string(x):
             if (x is not None):
@@ -223,24 +236,28 @@ class GUI:
         
         # get all messages from database in chronological order
         query = "SELECT * FROM messages ORDER BY created_at ASC"
-        self.cursor.execute(query)
-        result = self.cursor.fetchall()
-        all_message_blocks = []
-        if DEBUG:
-            for x in result:
-                print(x) # message: [id, userID, created_at, original_language, target_language, msg_original, msg_target]
-        for x in result:
-            q2 = "SELECT * FROM users WHERE id=" + str(x[1]) # get name via userID
-            self.cursor.execute(q2)
-            r2 = self.cursor.fetchall()
-            name = r2[0][1] # users: [id, name]
-            message_group = []
-            message_group.append(x[2].strftime(name + ": " + "%m/%d/%Y %H:%M:%S"))
-            message_group.append(parse_string(x[3]) + ": " + parse_string(x[5]))
-            message_group.append(parse_string(x[4]) + ": " + parse_string(x[6]))
-            all_message_blocks.append('\n'.join(message_group))
+        try:
+            self.cursor = self.database.cursor()
+            self.cursor.execute(query)
+            result = self.cursor.fetchall()
+            all_message_blocks = []
             if DEBUG:
-                print(*message_group, sep='\n')
+                for x in result:
+                    print(x) # message: [id, userID, created_at, original_language, target_language, msg_original, msg_target]
+            for x in result:
+                q2 = "SELECT * FROM users WHERE id=" + str(x[1]) # get name via userID
+                self.cursor.execute(q2)
+                r2 = self.cursor.fetchall()
+                name = r2[0][1] # users: [id, name]
+                message_group = []
+                message_group.append(x[2].strftime(name + ": " + "%m/%d/%Y %H:%M:%S"))
+                message_group.append(parse_string(x[3]) + ": " + parse_string(x[5]))
+                message_group.append(parse_string(x[4]) + ": " + parse_string(x[6]))
+                all_message_blocks.append('\n'.join(message_group))
+                if DEBUG:
+                    print(*message_group, sep='\n')
+        finally:
+            self.cursor.close()
         return all_message_blocks
     
 
