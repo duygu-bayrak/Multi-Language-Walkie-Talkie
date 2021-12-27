@@ -20,5 +20,7 @@ Resources:
               Ref: Bucket1
             Events:
               - 's3:ObjectCreated:Put'
+      Layers:
+        - 'arn:aws:lambda:us-east-1:760450528868:layer:pymysql:1'
   Bucket1:
     Type: 'AWS::S3::Bucket'
