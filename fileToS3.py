@@ -22,8 +22,8 @@ audio = open('C:/Users/user/Desktop/transcribe-sample.mp3', 'rb')
 #file = 'C:/Users/user/Desktop/transcribe-sample.mp3'
 payload = {}
 #payload['user_id'] = 1
-#payload['source_lang'] = "en"
-#payload['target_lang'] = "de"
+#payload['source_lang'] = "1" #store language code instead of string "en"
+#payload['target_lang'] = "2"
 #payload['audio'] = base64.b64encode(audio.read()).decode('utf-8') #need to decode cause "binary is not JSON serializable"
 #js = json.dumps(payload)
 
