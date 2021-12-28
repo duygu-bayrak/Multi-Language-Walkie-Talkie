@@ -250,6 +250,10 @@ class GUI:
             self.chat_transcript_area.insert('end', message_block + '\n')
 
         self.chat_transcript_area.yview(END)
+        
+        # TODO: play most recent audio <------------
+        # download last audio file from S3
+        # play audio file
         return
     
     def refresh(self, DEBUG=True):
