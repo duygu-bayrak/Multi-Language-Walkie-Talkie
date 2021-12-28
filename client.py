@@ -4,12 +4,15 @@ import socket  # Sockets for network connection
 import threading  # for multiple proccess
 import mysql.connector
 from datetime import datetime
+import argparse
 
 class GUI:
     client_socket = None
     last_received_message = None
 
-    def __init__(self, master, userID:int):
+    def __init__(self, master, userID:int, original_language_ID:int, target_language_ID:int):
+        self.ptt_state = "Push to Talk" # or "Recording"
+        self.recording = False
         self.root = master
         self.chat_transcript_area = None
         self.name_widget = None
@@ -18,6 +21,8 @@ class GUI:
         self.socket_connected = False
         self.userID = userID
         self.user = None
+        self.original_language_ID = original_language_ID
+        self.target_language_ID = target_language_ID
         self.connect_to_database()
         self.set_user()
         self.get_language_table()
@@ -77,7 +82,7 @@ class GUI:
         
     def initialize_socket(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # initialazing socket with TCP and IPv4
-        remote_ip = 'ec2-3-86-188-40.compute-1.amazonaws.com' # 127.0.0.1'  # IP address
+        remote_ip = 'ec2-54-208-62-46.compute-1.amazonaws.com' # 127.0.0.1'  # IP address
         # remote_ip = '127.0.0.1'
         remote_port = 10319  # TCP port
         try:
@@ -96,6 +101,7 @@ class GUI:
         self.display_chat_box()
         self.display_name_section()
         self.display_chat_entry_box()
+        self.display_push_to_talk()
 
     def listen_for_incoming_messages_in_a_thread(self):
         thread = threading.Thread(target=self.receive_message_from_server,
@@ -136,9 +142,12 @@ class GUI:
         frame = Frame()
         Label(frame, text='Enter your name:', font=("Helvetica", 16)).pack(side='left', padx=10)
         self.name_widget = Entry(frame, width=50, borderwidth=2)
+        self.name_widget.delete(0, END)
+        self.name_widget.insert(0, str(self.user))
+        self.name_widget.config(state='disabled')
         self.name_widget.pack(side='left', anchor='e')
-        self.join_button = Button(frame, text="Join", width=10, command=self.on_join).pack(side='left')
-        self.refresh_button = Button(frame, text="refresh", width=10, command=self.on_refresh).pack(side='left')
+        # self.join_button = Button(frame, text="-Join-", width=10, command=self.on_join).pack(side='left')
+        
         frame.pack(side='top', anchor='nw')
 
     def display_chat_box(self):
@@ -159,17 +168,27 @@ class GUI:
         self.enter_text_widget.pack(side='left', pady=15)
         self.enter_text_widget.bind('<Return>', self.on_enter_key_pressed)
         frame.pack(side='top')
+    
+    def display_push_to_talk(self):
+        frame = Frame()
+        # Label(frame, text='Push To Talk', font=("Serif", 12)).pack(side='top', anchor='w')
+        self.refresh_button = Button(frame, text="refresh", width=10, command=self.on_refresh).pack(side='left')
+        self.ptt_button = Button(frame, text="Push to Talk", width=15, command=self.on_push_to_talk)
+        self.ptt_button.pack(side='left')
+        frame.pack(side='top')
+        return
 
-    def on_join(self):
-        if len(self.name_widget.get()) == 0:
-            messagebox.showerror(
-                "Enter your name", "Enter your name to send a message")
-            return
-        self.name_widget.config(state='disabled')
-        if self.socket_connected:
-            self.client_socket.send(("joined:" + self.name_widget.get()).encode('utf-8'))
-        else:
-            print('socket not connected')
+    def on_join(self): # TODO: deprecate
+        # if len(self.name_widget.get()) == 0:
+        #     messagebox.showerror(
+        #         "Enter your name", "Enter your name to send a message")
+        #     return
+        # self.name_widget.config(state='disabled')
+        # if self.socket_connected:
+        #     self.client_socket.send(("joined:" + self.name_widget.get()).encode('utf-8'))
+        # else:
+        #     print('socket not connected')
+        return
 
     def on_enter_key_pressed(self, event):
         if len(self.name_widget.get()) == 0:
@@ -251,8 +270,8 @@ class GUI:
                 name = r2[0][1] # users: [id, name]
                 message_group = []
                 message_group.append(x[2].strftime(name + ": " + "%m/%d/%Y %H:%M:%S"))
-                message_group.append(parse_string(x[3]) + ": " + parse_string(x[5]))
-                message_group.append(parse_string(x[4]) + ": " + parse_string(x[6]))
+                message_group.append(parse_string(x[3]) + ": " + parse_string(x[5])) # TODO: query languages table to get language string
+                message_group.append(parse_string(x[4]) + ": " + parse_string(x[6]))  # " "
                 all_message_blocks.append('\n'.join(message_group))
                 if DEBUG:
                     print(*message_group, sep='\n')
@@ -260,14 +279,62 @@ class GUI:
             self.cursor.close()
         return all_message_blocks
     
+    def on_push_to_talk(self): # TODO <================================
+        # flip/flop between the "Push to Talk" and "Recording" state; see self.ptt_state
+        
+        # change text/state
+        if self.ptt_state == "Push to Talk":
+            # set next state
+            self.ptt_state = "Recording"
+            # self.ptt_button['text'] = "Recording..."
+            self.ptt_button.config(text="Recording...")
+            
+            # start recording in another thread; TODO
+            # in thread: while self.recording==True, record chunks
+            thread = threading.Thread(target=self.record_thread, args=())
+            thread.start()
+        elif self.ptt_state == "Recording":
+            # set next state
+            self.ptt_state = "Push to Talk"
+            # self.ptt_button['text'] = "Push to Talk"
+            self.ptt_button.config(text="Push to Talk")
+            
+            # stop recording and upload
+            self.recording = False
+            #self.userID
+            #self.original_language_ID
+            #self.target_language_ID
+            
+            # save .wav
+            
+            # upload to S3
+        else:
+            # catch
+            self.ptt_state = "Push to Talk"
+        
+        
+        return
+    
+    def record_thread(self):
+        # paste from colab
+        return
+    
 
 
 # the mail function
 if __name__ == '__main__':
-    userID = 1
+    # userID = 1 # # TODO: deprecate; replace with argparse
+    parser = argparse.ArgumentParser() # https://towardsdatascience.com/a-simple-guide-to-command-line-arguments-with-argparse-6824c30ab1c3
+    parser.add_argument('userID', type=int, required=True, default=1) # 1=guest
+    parser.add_argument('original_language_ID', type=int, default=1)
+    parser.add_argument('target_language_ID', type=int, default=2)
+    args = parser.parse_args()
+    userID = args.userID
+    original_language_ID = args.original_language_ID
+    target_language_ID = args.target_language_ID
     
     root = Tk()
-    gui = GUI(root,userID=userID)
+    gui = GUI(root,userID=userID, original_language_ID=original_language_ID, target_language_ID=target_language_ID)
     root.protocol("WM_DELETE_WINDOW", gui.on_close_window)
     root.mainloop()
     
@@ -277,9 +344,10 @@ if __name__ == '__main__':
 # current status:
 # client can receiver !DB_UPDATED and !USER_LEFT and perform the respective actions
 # TODO NEXT: <---------------------------
-# TODO: server.py: send "!USER_LEFT <user>" on socket fail
-# TODO: client -> S3 -> lambda pipleine, ending with lambda sending !DB_UPDATED
-# TODO: add record button/functionality to start the client->s3->lambda pipeline
-# TODO: change: auto fill in user name
+# DONE: server.py: send "!USER_LEFT <user>" on socket fail
+# DOING: client -> S3 -> lambda pipleine, ending with lambda sending !DB_UPDATED
+# DONE: add record button/functionality to start the client->s3->lambda pipeline
+# DONE: change: auto fill in user name
 # TODO: remove text chat functionality
 # TODO: try Elastic IP address
+# TODO: push to talk functionality
