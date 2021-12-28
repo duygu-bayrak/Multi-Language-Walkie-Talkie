@@ -5,12 +5,20 @@ import threading  # for multiple proccess
 import mysql.connector
 from datetime import datetime
 import argparse
+import boto3
 
 class GUI:
     client_socket = None
     last_received_message = None
 
-    def __init__(self, master, userID:int, original_language_ID:int, target_language_ID:int):
+    def __init__(self, master, userID:int, original_language_ID:int, target_language_ID:int,
+                 aws_access_key_id, aws_secret_access_key, aws_session_token):
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+        self.aws_session_token = aws_session_token
+        self.session = boto3.Session(aws_access_key_id=self.aws_access_key_id,
+                                     aws_secret_access_key=self.aws_secret_access_key,
+                                     aws_session_token=self.aws_session_token)
         self.ptt_state = "Push to Talk" # or "Recording"
         self.recording = False
         self.root = master
@@ -307,7 +315,22 @@ class GUI:
             
             # save .wav
             
-            # upload to S3
+            # upload to S3 // note: this could take a few seconds
+            audio = open('./hello_de.m.mp3', 'rb')
+            bucket_name = "bucket-132423434" # this is the bucket associated with the AWS credentials entered via argparse
+            s3_filename = "test.mp3"
+            s3 = self.session.resource('s3')
+            object = s3.Object(bucket_name, s3_filename)
+            result = object.put(Body=audio.read(), Metadata={ # TODO: check w/ Duygu on metadata; first check db schema
+                'user_id': '1',
+                'source_lang': 'zh-TW',
+                'target_lang': 'en'
+            })
+            res = result.get('ResponseMetadata')
+            if res.get('HTTPStatusCode') == 200:
+                print('File Uploaded Successfully')
+            else:
+                print('File Not Uploaded')
         else:
             # catch
             self.ptt_state = "Push to Talk"
@@ -325,16 +348,25 @@ class GUI:
 if __name__ == '__main__':
     # userID = 1 # # TODO: deprecate; replace with argparse
     parser = argparse.ArgumentParser() # https://towardsdatascience.com/a-simple-guide-to-command-line-arguments-with-argparse-6824c30ab1c3
-    parser.add_argument('userID', type=int, required=True, default=1) # 1=guest
-    parser.add_argument('original_language_ID', type=int, default=1)
-    parser.add_argument('target_language_ID', type=int, default=2)
+    # add positional args first
+    parser.add_argument('userID', type=int, default=1) # 1=guest
+    parser.add_argument('aws_access_key_id', type=str)
+    parser.add_argument('aws_secret_access_key', type=str)
+    parser.add_argument('aws_session_token', type=str)
+    # then optional args
+    parser.add_argument('--original_language_ID', type=int, default=1)
+    parser.add_argument('--target_language_ID', type=int, default=2)
+    
     args = parser.parse_args()
-    userID = args.userID
-    original_language_ID = args.original_language_ID
-    target_language_ID = args.target_language_ID
     
     root = Tk()
-    gui = GUI(root,userID=userID, original_language_ID=original_language_ID, target_language_ID=target_language_ID)
+    gui = GUI(root,userID=args.userID,
+              original_language_ID=args.original_language_ID,
+              target_language_ID=args.target_language_ID,
+              aws_access_key_id=args.aws_access_key_id,
+              aws_secret_access_key=args.aws_secret_access_key,
+              aws_session_token=args.aws_session_token
+              )
     root.protocol("WM_DELETE_WINDOW", gui.on_close_window)
     root.mainloop()
     
@@ -351,3 +383,12 @@ if __name__ == '__main__':
 # TODO: remove text chat functionality
 # TODO: try Elastic IP address
 # TODO: push to talk functionality
+# DONE: add AWS authentication
+# DONE: test add to S3
+
+# Vincent's S3 bucket: bucket-132423434
+
+# run commands:
+# use python for pycharm terminal
+# python3 client.py 1 aws_access_key_id aws_secret_access_key aws_session_token --original_language_ID 1 --target_language_ID 2
+# python client.py  1 aws_access_key_id aws_secret_access_key aws_session_token --original_language_ID 1 --target_language_ID 2
