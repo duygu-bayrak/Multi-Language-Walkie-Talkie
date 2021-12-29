@@ -4,12 +4,23 @@ import socket  # Sockets for network connection
 import threading  # for multiple proccess
 import mysql.connector
 from datetime import datetime
+import argparse
+import boto3
 
 class GUI:
     client_socket = None
     last_received_message = None
 
-    def __init__(self, master, userID:int):
+    def __init__(self, master, userID:int, original_language_ID:int, target_language_ID:int,
+                 aws_access_key_id, aws_secret_access_key, aws_session_token):
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+        self.aws_session_token = aws_session_token
+        self.session = boto3.Session(aws_access_key_id=self.aws_access_key_id,
+                                     aws_secret_access_key=self.aws_secret_access_key,
+                                     aws_session_token=self.aws_session_token)
+        self.ptt_state = "Push to Talk" # or "Recording"
+        self.recording = False
         self.root = master
         self.chat_transcript_area = None
         self.name_widget = None
@@ -18,6 +29,8 @@ class GUI:
         self.socket_connected = False
         self.userID = userID
         self.user = None
+        self.original_language_ID = original_language_ID
+        self.target_language_ID = target_language_ID
         self.connect_to_database()
         self.set_user()
         self.get_language_table()
@@ -77,7 +90,7 @@ class GUI:
         
     def initialize_socket(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # initialazing socket with TCP and IPv4
-        remote_ip = 'ec2-3-86-188-40.compute-1.amazonaws.com' # 127.0.0.1'  # IP address
+        remote_ip = 'ec2-34-195-127-232.compute-1.amazonaws.com' # 127.0.0.1'  # IP address
         # remote_ip = '127.0.0.1'
         remote_port = 10319  # TCP port
         try:
@@ -96,6 +109,7 @@ class GUI:
         self.display_chat_box()
         self.display_name_section()
         self.display_chat_entry_box()
+        self.display_push_to_talk()
 
     def listen_for_incoming_messages_in_a_thread(self):
         thread = threading.Thread(target=self.receive_message_from_server,
@@ -136,9 +150,12 @@ class GUI:
         frame = Frame()
         Label(frame, text='Enter your name:', font=("Helvetica", 16)).pack(side='left', padx=10)
         self.name_widget = Entry(frame, width=50, borderwidth=2)
+        self.name_widget.delete(0, END)
+        self.name_widget.insert(0, str(self.user))
+        self.name_widget.config(state='disabled')
         self.name_widget.pack(side='left', anchor='e')
-        self.join_button = Button(frame, text="Join", width=10, command=self.on_join).pack(side='left')
-        self.refresh_button = Button(frame, text="refresh", width=10, command=self.on_refresh).pack(side='left')
+        # self.join_button = Button(frame, text="-Join-", width=10, command=self.on_join).pack(side='left')
+        
         frame.pack(side='top', anchor='nw')
 
     def display_chat_box(self):
@@ -159,17 +176,27 @@ class GUI:
         self.enter_text_widget.pack(side='left', pady=15)
         self.enter_text_widget.bind('<Return>', self.on_enter_key_pressed)
         frame.pack(side='top')
+    
+    def display_push_to_talk(self):
+        frame = Frame()
+        # Label(frame, text='Push To Talk', font=("Serif", 12)).pack(side='top', anchor='w')
+        self.refresh_button = Button(frame, text="refresh", width=10, command=self.on_refresh).pack(side='left')
+        self.ptt_button = Button(frame, text="Push to Talk", width=15, command=self.on_push_to_talk)
+        self.ptt_button.pack(side='left')
+        frame.pack(side='top')
+        return
 
-    def on_join(self):
-        if len(self.name_widget.get()) == 0:
-            messagebox.showerror(
-                "Enter your name", "Enter your name to send a message")
-            return
-        self.name_widget.config(state='disabled')
-        if self.socket_connected:
-            self.client_socket.send(("joined:" + self.name_widget.get()).encode('utf-8'))
-        else:
-            print('socket not connected')
+    def on_join(self): # TODO: deprecate
+        # if len(self.name_widget.get()) == 0:
+        #     messagebox.showerror(
+        #         "Enter your name", "Enter your name to send a message")
+        #     return
+        # self.name_widget.config(state='disabled')
+        # if self.socket_connected:
+        #     self.client_socket.send(("joined:" + self.name_widget.get()).encode('utf-8'))
+        # else:
+        #     print('socket not connected')
+        return
 
     def on_enter_key_pressed(self, event):
         if len(self.name_widget.get()) == 0:
@@ -223,6 +250,10 @@ class GUI:
             self.chat_transcript_area.insert('end', message_block + '\n')
 
         self.chat_transcript_area.yview(END)
+        
+        # TODO: play most recent audio <------------
+        # download last audio file from S3
+        # play audio file
         return
     
     def refresh(self, DEBUG=True):
@@ -251,8 +282,8 @@ class GUI:
                 name = r2[0][1] # users: [id, name]
                 message_group = []
                 message_group.append(x[2].strftime(name + ": " + "%m/%d/%Y %H:%M:%S"))
-                message_group.append(parse_string(x[3]) + ": " + parse_string(x[5]))
-                message_group.append(parse_string(x[4]) + ": " + parse_string(x[6]))
+                message_group.append(parse_string(x[3]) + ": " + parse_string(x[5])) # TODO: query languages table to get language string
+                message_group.append(parse_string(x[4]) + ": " + parse_string(x[6]))  # " "
                 all_message_blocks.append('\n'.join(message_group))
                 if DEBUG:
                     print(*message_group, sep='\n')
@@ -260,14 +291,86 @@ class GUI:
             self.cursor.close()
         return all_message_blocks
     
+    def on_push_to_talk(self): # TODO <================================
+        # flip/flop between the "Push to Talk" and "Recording" state; see self.ptt_state
+        
+        # change text/state
+        if self.ptt_state == "Push to Talk":
+            # set next state
+            self.ptt_state = "Recording"
+            # self.ptt_button['text'] = "Recording..."
+            self.ptt_button.config(text="Recording...")
+            
+            # start recording in another thread; TODO
+            # in thread: while self.recording==True, record chunks
+            thread = threading.Thread(target=self.record_thread, args=())
+            thread.start()
+        elif self.ptt_state == "Recording":
+            # set next state
+            self.ptt_state = "Push to Talk"
+            # self.ptt_button['text'] = "Push to Talk"
+            self.ptt_button.config(text="Push to Talk")
+            
+            # stop recording and upload
+            self.recording = False
+            #self.userID
+            #self.original_language_ID
+            #self.target_language_ID
+            
+            # save .wav
+            
+            # upload to S3 // note: this could take a few seconds
+            audio = open('./hello_de.m.mp3', 'rb')
+            bucket_name = "bucket-132423434" # this is the bucket associated with the AWS credentials entered via argparse
+            s3_filename = "test.mp3"
+            s3 = self.session.resource('s3')
+            object = s3.Object(bucket_name, s3_filename)
+            result = object.put(Body=audio.read(), Metadata={ # TODO: check w/ Duygu on metadata; first check db schema
+                'user_id': '1',
+                'source_lang': 'zh-TW',
+                'target_lang': 'en'
+            })
+            res = result.get('ResponseMetadata')
+            if res.get('HTTPStatusCode') == 200:
+                print('File Uploaded Successfully')
+            else:
+                print('File Not Uploaded')
+        else:
+            # catch
+            self.ptt_state = "Push to Talk"
+        
+        
+        return
+    
+    def record_thread(self):
+        # paste from colab
+        return
+    
 
 
 # the mail function
 if __name__ == '__main__':
-    userID = 1
+    # userID = 1 # # TODO: deprecate; replace with argparse
+    parser = argparse.ArgumentParser() # https://towardsdatascience.com/a-simple-guide-to-command-line-arguments-with-argparse-6824c30ab1c3
+    # add positional args first
+    parser.add_argument('userID', type=int, default=1) # 1=guest
+    parser.add_argument('aws_access_key_id', type=str)
+    parser.add_argument('aws_secret_access_key', type=str)
+    parser.add_argument('aws_session_token', type=str)
+    # then optional args
+    parser.add_argument('--original_language_ID', type=int, default=1)
+    parser.add_argument('--target_language_ID', type=int, default=2)
+    
+    args = parser.parse_args()
     
     root = Tk()
-    gui = GUI(root,userID=userID)
+    gui = GUI(root,userID=args.userID,
+              original_language_ID=args.original_language_ID,
+              target_language_ID=args.target_language_ID,
+              aws_access_key_id=args.aws_access_key_id,
+              aws_secret_access_key=args.aws_secret_access_key,
+              aws_session_token=args.aws_session_token
+              )
     root.protocol("WM_DELETE_WINDOW", gui.on_close_window)
     root.mainloop()
     
@@ -277,9 +380,19 @@ if __name__ == '__main__':
 # current status:
 # client can receiver !DB_UPDATED and !USER_LEFT and perform the respective actions
 # TODO NEXT: <---------------------------
-# TODO: server.py: send "!USER_LEFT <user>" on socket fail
-# TODO: client -> S3 -> lambda pipleine, ending with lambda sending !DB_UPDATED
-# TODO: add record button/functionality to start the client->s3->lambda pipeline
-# TODO: change: auto fill in user name
+# DONE: server.py: send "!USER_LEFT <user>" on socket fail
+# DOING: client -> S3 -> lambda pipleine, ending with lambda sending !DB_UPDATED
+# DONE: add record button/functionality to start the client->s3->lambda pipeline
+# DONE: change: auto fill in user name
 # TODO: remove text chat functionality
 # TODO: try Elastic IP address
+# TODO: push to talk functionality
+# DONE: add AWS authentication
+# DONE: test add to S3
+
+# Vincent's S3 bucket: bucket-132423434
+
+# run commands:
+# use python for pycharm terminal
+# python3 client.py 1 aws_access_key_id aws_secret_access_key aws_session_token --original_language_ID 1 --target_language_ID 2
+# python client.py  1 aws_access_key_id aws_secret_access_key aws_session_token --original_language_ID 1 --target_language_ID 2

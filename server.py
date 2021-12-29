@@ -101,4 +101,6 @@ class ChatServer:
 
 if __name__ == "__main__":
     x = ChatServer()
+
+# TODO: use argparse for port; remember to open a port range in AWS
     
