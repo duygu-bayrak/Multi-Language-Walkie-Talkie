@@ -109,7 +109,7 @@ class GUI:
     def initialize_socket(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # initialazing socket with TCP and IPv4
         remote_ip = 'ec2-34-195-127-232.compute-1.amazonaws.com' # 127.0.0.1'  # IP address
-        remote_ip = '127.0.0.1'
+        # remote_ip = '127.0.0.1'
         remote_port = self.port # 10319  # TCP port
         try:
             self.client_socket.connect((remote_ip, remote_port))  # connect to the remote server
