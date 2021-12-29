@@ -6,6 +6,7 @@ import mysql.connector
 from datetime import datetime
 import argparse
 import boto3
+from playsound import playsound
 
 class GUI:
     client_socket = None
@@ -183,9 +184,11 @@ class GUI:
     def display_push_to_talk(self):
         frame = Frame()
         # Label(frame, text='Push To Talk', font=("Serif", 12)).pack(side='top', anchor='w')
-        self.refresh_button = Button(frame, text="refresh", width=10, command=self.on_refresh).pack(side='left')
+        self.refresh_button = Button(frame, text="Refresh", width=10, command=self.on_refresh).pack(side='left')
         self.ptt_button = Button(frame, text="Push to Talk", width=15, command=self.on_push_to_talk)
         self.ptt_button.pack(side='left')
+        self.play_last_button = Button(frame, text="Play Last", width=10, command=self.on_play_last)
+        self.play_last_button.pack(side='left')
         frame.pack(side='top')
         return
 
@@ -384,6 +387,22 @@ class GUI:
         # paste from colab
         return
     
+    def on_play_last(self, DEBUG=True):
+        query = "SELECT id, msg_speech FROM messages WHERE room = 456 ORDER BY created_at DESC LIMIT 1" # get most recent audio
+        try:
+            self.cursor = self.database.cursor()
+            self.cursor.execute(query)
+            result = self.cursor.fetchall()
+            #print(result) # [(5, 'https://s3.amazonaws.com/synthesized.walkietalkie/hello_de.m.mp3')]
+            file = result[0][1]
+            if DEBUG:
+                print(file)
+            
+            playsound(file)
+            
+        except:
+            print('could not connect to database or play audio')
+        return
 
 
 # the mail function
