@@ -198,6 +198,7 @@ class GUI:
     def display_push_to_talk(self):
         frame = Frame()
         # Label(frame, text='Push To Talk', font=("Serif", 12)).pack(side='top', anchor='w')
+        self.connect_button = Button(frame, text="Re-connect", width=10, command=self.initialize_socket).pack(side='left')
         self.refresh_button = Button(frame, text="Refresh", width=10, command=self.on_refresh).pack(side='left')
         self.ptt_button = Button(frame, text="Push to Talk", width=15, command=self.on_push_to_talk)
         self.ptt_button.pack(side='left')
@@ -248,6 +249,7 @@ class GUI:
                     self.client_socket.send(message)
                 except:
                     print('could not connect to server; check if server is online') # TODO: test this; d/c server and send a msg
+                    # DONE: add a connect button; call initialize_socket()
             else:
                 print('socket not connected; message not sent')
         else:
