@@ -3,3 +3,5 @@ playsound
 boto3
 tqdm
 requests
+pyaudio
+wget

@@ -9,13 +9,20 @@ import boto3
 from playsound import playsound
 import requests
 from tqdm import tqdm
+import pyaudio
+import wave
+import time
+import wget
 
 class GUI:
     client_socket = None
     last_received_message = None
 
     def __init__(self, master, userID:int, room:int, original_language_ID:int, target_language_ID:int,
+                 microphone_index:int,
                  aws_access_key_id, aws_secret_access_key, aws_session_token):
+        self.microphone_index = microphone_index
+        
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
         self.aws_session_token = aws_session_token
@@ -44,7 +51,10 @@ class GUI:
         self.initialize_socket()
         self.initialize_gui()
         self.listen_for_incoming_messages_in_a_thread()
-        
+        return
+    
+    
+    
     def connect_to_database(self):
         try:
             self.database = mysql.connector.connect(
@@ -254,6 +264,7 @@ class GUI:
         self.chat_transcript_area.delete(1.0, END)
         
         all_message_blocks = self.refresh()
+        
         for message_block in all_message_blocks:
             self.chat_transcript_area.insert('end', message_block + '\n')
 
@@ -333,7 +344,7 @@ class GUI:
         
         return all_message_blocks
     
-    def on_push_to_talk(self): # TODO <================================
+    def on_push_to_talk(self):
         # flip/flop between the "Push to Talk" and "Recording" state; see self.ptt_state
         
         # change text/state
@@ -343,8 +354,9 @@ class GUI:
             # self.ptt_button['text'] = "Recording..."
             self.ptt_button.config(text="Recording...")
             
-            # start recording in another thread; TODO
+            # start recording in another thread
             # in thread: while self.recording==True, record chunks
+            self.recording = True
             thread = threading.Thread(target=self.record_thread, args=())
             thread.start()
         elif self.ptt_state == "Recording":
@@ -355,28 +367,33 @@ class GUI:
             
             # stop recording and upload
             self.recording = False
-            #self.userID
-            #self.original_language_ID
-            #self.target_language_ID
+            # TODO: need to wait for thread to finish, then open()
+            time.sleep(1) # for now, just wait
             
-            # save .wav
-            
-            # upload to S3 // note: this could take a few seconds
-            audio = open('./hello_de.m.mp3', 'rb')
-            bucket_name = "bucket-132423434" # this is the bucket associated with the AWS credentials entered via argparse
-            s3_filename = "test.mp3"
-            s3 = self.session.resource('s3')
-            object = s3.Object(bucket_name, s3_filename)
-            result = object.put(Body=audio.read(), Metadata={ # TODO: check w/ Duygu on metadata; first check db schema
-                'user_id': '1',
-                'source_lang': 'zh-TW',
-                'target_lang': 'en'
-            })
-            res = result.get('ResponseMetadata')
-            if res.get('HTTPStatusCode') == 200:
-                print('File Uploaded Successfully')
-            else:
-                print('File Not Uploaded')
+            # save .wav and upload to S3 // note: this could take a few seconds
+            def upload_audio_to_S3():
+                audio = open('./recording.wav',
+                             'rb')  # note: this must match in the recording function...hard coded for now
+                bucket_name = "bucket-132423434"  # this is the bucket associated with the AWS credentials entered via argparse
+                now = datetime.now()
+                s3_filename = now.strftime('recording_' + '%Y%m%d_%H%M%S' + '.wav')  # "recording.wav"
+                s3 = self.session.resource('s3')
+                object = s3.Object(bucket_name, s3_filename)
+                result = object.put(Body=audio.read(),
+                                    Metadata={  # TODO: check w/ Duygu on metadata; first check db schema
+                                        'user_id': str(self.userID),
+                                        'source_lang': str(self.original_language_ID),
+                                        'target_lang': str(self.target_language_ID),
+                                        'room': str(self.room)
+                                    })
+                res = result.get('ResponseMetadata')
+                if res.get('HTTPStatusCode') == 200:
+                    print('File Uploaded Successfully')
+                else:
+                    print('File Not Uploaded')
+                return
+            thread_upload = threading.Thread(target=upload_audio_to_S3)
+            thread_upload.start()
         else:
             # catch
             self.ptt_state = "Push to Talk"
@@ -385,7 +402,41 @@ class GUI:
         return
     
     def record_thread(self):
-        # paste from colab
+        
+        form_1 = pyaudio.paInt16  # 16-bit resolution
+        chans = 1  # 1 channel
+        samp_rate = 44100  # 16000 # 44.1kHz sampling rate
+        chunk = 4096  # 2^12 samples for buffer
+        #record_secs = 10  # seconds to record
+        dev_index = 1  # device index found by p.get_device_info_by_index(ii)
+        wav_output_filename = 'recording.wav'  # name of .wav file
+
+        audio = pyaudio.PyAudio()  # create pyaudio instantiation
+
+        # create pyaudio stream
+        stream = audio.open(format=form_1, rate=samp_rate, channels=chans,
+                            input_device_index=dev_index, input=True,
+                            frames_per_buffer=chunk)
+        print("recording")
+        frames = []
+        while self.recording:
+            data = stream.read(chunk)
+            frames.append(data)
+
+        print("finished recording")
+        
+        # stop the stream, close it, and terminate the pyaudio instantiation
+        stream.stop_stream()
+        stream.close()
+        audio.terminate()
+
+        # save the audio frames as .wav file
+        wavefile = wave.open(wav_output_filename, 'wb')
+        wavefile.setnchannels(chans)
+        wavefile.setsampwidth(audio.get_sample_size(form_1))
+        wavefile.setframerate(samp_rate)
+        wavefile.writeframes(b''.join(frames))
+        wavefile.close()
         return
     
     def on_play_last(self, DEBUG=True):
@@ -400,14 +451,10 @@ class GUI:
                 print(file)
             
             # first, download file
-            # local_file = file.split('/')[-1]
-            # response = requests.get(file, stream=True)
-            # with open(local_file, 'wb') as handle:
-            #     for data in tqdm(response.iter_content()):
-            #         handle.write(data)
+            # file_local = wget.download(file)
             # if DEBUG:
-            #     print(local_file)
-            playsound(file) # TODO: sometimes, get error: playsound() failed to close file
+            #     print(file_local)
+            playsound(file) # TODO: playsound is not reliable; no spaces in filename?
             
         except:
             print('could not connect to database or play audio')
@@ -418,6 +465,16 @@ class GUI:
 
 # the mail function
 if __name__ == '__main__':
+    def initialize_audio_devices():
+        print('initializing audio devices')
+        p = pyaudio.PyAudio()
+        for ii in range(p.get_device_count()):
+            print(ii, p.get_device_info_by_index(ii).get('name'))
+        
+        mic_index = input('select microphone index:')
+        microphone_index = int(mic_index)
+        return microphone_index
+    
     # userID = 1 # # TODO: deprecate; replace with argparse
     parser = argparse.ArgumentParser() # https://towardsdatascience.com/a-simple-guide-to-command-line-arguments-with-argparse-6824c30ab1c3
     # add positional args first
@@ -427,8 +484,10 @@ if __name__ == '__main__':
     parser.add_argument('aws_secret_access_key', type=str)
     parser.add_argument('aws_session_token', type=str)
     # then optional args
+    parser.add_argument('--microphone_index', type=int)
     parser.add_argument('--original_language_ID', type=int, default=1)
     parser.add_argument('--target_language_ID', type=int, default=2)
+    
     
     args = parser.parse_args()
     
@@ -439,7 +498,8 @@ if __name__ == '__main__':
               target_language_ID=args.target_language_ID,
               aws_access_key_id=args.aws_access_key_id,
               aws_secret_access_key=args.aws_secret_access_key,
-              aws_session_token=args.aws_session_token
+              aws_session_token=args.aws_session_token,
+              microphone_index=initialize_audio_devices()
               )
     root.protocol("WM_DELETE_WINDOW", gui.on_close_window)
     root.mainloop()
@@ -456,9 +516,10 @@ if __name__ == '__main__':
 # DONE: change: auto fill in user name
 # TODO: remove text chat functionality
 # DONE: try Elastic IP address
-# TODO: push to talk functionality
+# DONE: push to talk functionality
 # DONE: add AWS authentication
 # DONE: test add to S3
+# TODO: change to Duygu's  credentials and test the AWS pipeline
 
 # Vincent's S3 bucket: bucket-132423434
 
@@ -466,3 +527,7 @@ if __name__ == '__main__':
 # use python for pycharm terminal
 # python3 client.py userID room aws_access_key_id aws_secret_access_key aws_session_token --original_language_ID 1 --target_language_ID 2
 # python client.py  userID room  aws_access_key_id aws_secret_access_key aws_session_token --original_language_ID 1 --target_language_ID 2
+
+# TODO test basic scenario:
+# user 1 @ room 1: en -> de
+# user 2 @ room 1: de -> en
