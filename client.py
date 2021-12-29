@@ -7,6 +7,8 @@ from datetime import datetime
 import argparse
 import boto3
 from playsound import playsound
+import requests
+from tqdm import tqdm
 
 class GUI:
     client_socket = None
@@ -257,9 +259,8 @@ class GUI:
 
         self.chat_transcript_area.yview(END)
         
-        # TODO: play most recent audio <------------
-        # download last audio file from S3
-        # play audio file
+        # play most recent audio
+        self.on_play_last()
         return
     
     def refresh(self, DEBUG=True):
@@ -398,10 +399,20 @@ class GUI:
             if DEBUG:
                 print(file)
             
-            playsound(file)
+            # first, download file
+            # local_file = file.split('/')[-1]
+            # response = requests.get(file, stream=True)
+            # with open(local_file, 'wb') as handle:
+            #     for data in tqdm(response.iter_content()):
+            #         handle.write(data)
+            # if DEBUG:
+            #     print(local_file)
+            playsound(file) # TODO: sometimes, get error: playsound() failed to close file
             
         except:
             print('could not connect to database or play audio')
+        
+        
         return
 
 

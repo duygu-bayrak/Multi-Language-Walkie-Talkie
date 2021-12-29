@@ -1,3 +1,5 @@
 mysql-connector-python
 playsound
 boto3
+tqdm
+requests
