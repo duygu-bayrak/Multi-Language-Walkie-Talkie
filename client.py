@@ -11,7 +11,7 @@ class GUI:
     client_socket = None
     last_received_message = None
 
-    def __init__(self, master, userID:int, original_language_ID:int, target_language_ID:int,
+    def __init__(self, master, userID:int, room:int, original_language_ID:int, target_language_ID:int,
                  aws_access_key_id, aws_secret_access_key, aws_session_token):
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
@@ -21,16 +21,19 @@ class GUI:
                                      aws_session_token=self.aws_session_token)
         self.ptt_state = "Push to Talk" # or "Recording"
         self.recording = False
+        self.room = room
+        self.userID = userID
+        self.user = None
+        self.original_language_ID = original_language_ID
+        self.target_language_ID = target_language_ID
+        
         self.root = master
         self.chat_transcript_area = None
         self.name_widget = None
         self.enter_text_widget = None
         self.join_button = None
         self.socket_connected = False
-        self.userID = userID
-        self.user = None
-        self.original_language_ID = original_language_ID
-        self.target_language_ID = target_language_ID
+        
         self.connect_to_database()
         self.set_user()
         self.get_language_table()
@@ -208,7 +211,7 @@ class GUI:
     def clear_text(self):
         self.enter_text_widget.delete(1.0, 'end')
         
-    def send_chat_via_S3(self): # TODO: install boto3
+    def send_chat_via_S3(self): # DONE: install boto3 # TODO: delete this function
         data = self.enter_text_widget.get(1.0, 'end').strip()
         return
     
@@ -257,6 +260,9 @@ class GUI:
         return
     
     def refresh(self, DEBUG=True):
+        '''
+        on clicking refresh, gets all messages from the client's room
+        '''
         
         def parse_string(x):
             if (x is not None):
@@ -266,7 +272,42 @@ class GUI:
             return out
         
         # get all messages from database in chronological order
-        query = "SELECT * FROM messages ORDER BY created_at ASC"
+        # query = "SELECT * FROM messages ORDER BY created_at ASC"
+        # try:
+        #     self.cursor = self.database.cursor()
+        #     self.cursor.execute(query)
+        #     result = self.cursor.fetchall()
+        #     all_message_blocks = []
+        #     if DEBUG:
+        #         for x in result:
+        #             print(x) # message: [id, userID, created_at, original_language, target_language, msg_original, msg_target, msg_speech, room]
+        #     for x in result:
+        #         q2 = "SELECT * FROM users WHERE id=" + str(x[1]) # get name via userID
+        #         self.cursor.execute(q2)
+        #         r2 = self.cursor.fetchall()
+        #         name = r2[0][1] # users: [id, name]
+        #         message_group = []
+        #         message_group.append(x[2].strftime(name + ": " + "%m/%d/%Y %H:%M:%S"))
+        #         message_group.append(parse_string(x[3]) + ": " + parse_string(x[5])) # original_language: msg_original
+        #         message_group.append(parse_string(x[4]) + ": " + parse_string(x[6]))  # target_language: msg_target
+        #         all_message_blocks.append('\n'.join(message_group))
+        #         if DEBUG:
+        #             print(*message_group, sep='\n')
+        # finally:
+        #     self.cursor.close()
+        
+        
+        query = "SELECT m.created_at, u.name, m.room, \
+                l.transcribe_lang_code AS original_lang, \
+                l2.transcribe_lang_code AS target_lang, \
+                m.msg_original, m.msg_target, m.msg_speech \
+                FROM messages m \
+                INNER JOIN users u ON m.userID = u.id \
+                INNER JOIN languages l ON m.original_language=l.id \
+                INNER JOIN languages l2 ON m.target_language=l2.id \
+                WHERE m.room = " + str(self.room) # choose user id; then select messages from that user's room" # TODO: change 4 to self.room
+        # created_at, name, room, original_lang, target_lang, msg_original, msg_target, msg_speech
+
         try:
             self.cursor = self.database.cursor()
             self.cursor.execute(query)
@@ -274,21 +315,18 @@ class GUI:
             all_message_blocks = []
             if DEBUG:
                 for x in result:
-                    print(x) # message: [id, userID, created_at, original_language, target_language, msg_original, msg_target]
+                    print(x)
             for x in result:
-                q2 = "SELECT * FROM users WHERE id=" + str(x[1]) # get name via userID
-                self.cursor.execute(q2)
-                r2 = self.cursor.fetchall()
-                name = r2[0][1] # users: [id, name]
                 message_group = []
-                message_group.append(x[2].strftime(name + ": " + "%m/%d/%Y %H:%M:%S"))
-                message_group.append(parse_string(x[3]) + ": " + parse_string(x[5])) # TODO: query languages table to get language string
-                message_group.append(parse_string(x[4]) + ": " + parse_string(x[6]))  # " "
+                message_group.append(x[0].strftime(x[1] + ": " + "%m/%d/%Y %H:%M:%S")) # name: date-time
+                message_group.append(parse_string(x[3]) + ": " + parse_string(x[5]))  # original_language: msg_original
+                message_group.append(parse_string(x[4]) + ": " + parse_string(x[6]))  # target_language: msg_target
                 all_message_blocks.append('\n'.join(message_group))
                 if DEBUG:
                     print(*message_group, sep='\n')
         finally:
             self.cursor.close()
+        
         return all_message_blocks
     
     def on_push_to_talk(self): # TODO <================================
@@ -354,6 +392,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser() # https://towardsdatascience.com/a-simple-guide-to-command-line-arguments-with-argparse-6824c30ab1c3
     # add positional args first
     parser.add_argument('userID', type=int, default=1) # 1=guest
+    parser.add_argument('room', type=int)
     parser.add_argument('aws_access_key_id', type=str)
     parser.add_argument('aws_secret_access_key', type=str)
     parser.add_argument('aws_session_token', type=str)
@@ -365,6 +404,7 @@ if __name__ == '__main__':
     
     root = Tk()
     gui = GUI(root,userID=args.userID,
+              room=args.room,
               original_language_ID=args.original_language_ID,
               target_language_ID=args.target_language_ID,
               aws_access_key_id=args.aws_access_key_id,
@@ -385,7 +425,7 @@ if __name__ == '__main__':
 # DONE: add record button/functionality to start the client->s3->lambda pipeline
 # DONE: change: auto fill in user name
 # TODO: remove text chat functionality
-# TODO: try Elastic IP address
+# DONE: try Elastic IP address
 # TODO: push to talk functionality
 # DONE: add AWS authentication
 # DONE: test add to S3
@@ -394,5 +434,5 @@ if __name__ == '__main__':
 
 # run commands:
 # use python for pycharm terminal
-# python3 client.py 1 aws_access_key_id aws_secret_access_key aws_session_token --original_language_ID 1 --target_language_ID 2
-# python client.py  1 aws_access_key_id aws_secret_access_key aws_session_token --original_language_ID 1 --target_language_ID 2
+# python3 client.py userID room aws_access_key_id aws_secret_access_key aws_session_token --original_language_ID 1 --target_language_ID 2
+# python client.py  userID room  aws_access_key_id aws_secret_access_key aws_session_token --original_language_ID 1 --target_language_ID 2
