@@ -18,7 +18,8 @@ class GUI:
     client_socket = None
     last_received_message = None
 
-    def __init__(self, master, userID:int, room:int, original_language_ID:int, target_language_ID:int,
+    def __init__(self, master, userID:int, room:int, port:int,
+                 original_language_ID:int, target_language_ID:int,
                  microphone_index:int,
                  aws_access_key_id, aws_secret_access_key, aws_session_token):
         self.microphone_index = microphone_index
@@ -32,6 +33,7 @@ class GUI:
         self.ptt_state = "Push to Talk" # or "Recording"
         self.recording = False
         self.room = room
+        self.port = port
         self.userID = userID
         self.user = None
         self.original_language_ID = original_language_ID
@@ -107,8 +109,8 @@ class GUI:
     def initialize_socket(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # initialazing socket with TCP and IPv4
         remote_ip = 'ec2-34-195-127-232.compute-1.amazonaws.com' # 127.0.0.1'  # IP address
-        # remote_ip = '127.0.0.1'
-        remote_port = 10319  # TCP port
+        remote_ip = '127.0.0.1'
+        remote_port = self.port # 10319  # TCP port
         try:
             self.client_socket.connect((remote_ip, remote_port))  # connect to the remote server
             self.socket_connected = True
@@ -480,6 +482,7 @@ if __name__ == '__main__':
     # add positional args first
     parser.add_argument('userID', type=int, default=1) # 1=guest
     parser.add_argument('room', type=int)
+    parser.add_argument('port', type=int)
     parser.add_argument('aws_access_key_id', type=str)
     parser.add_argument('aws_secret_access_key', type=str)
     parser.add_argument('aws_session_token', type=str)
@@ -494,6 +497,7 @@ if __name__ == '__main__':
     root = Tk()
     gui = GUI(root,userID=args.userID,
               room=args.room,
+              port=args.port,
               original_language_ID=args.original_language_ID,
               target_language_ID=args.target_language_ID,
               aws_access_key_id=args.aws_access_key_id,

@@ -1,6 +1,8 @@
 # imports
 import socket
 import threading
+import argparse
+
 
 
 class ChatServer:
@@ -8,7 +10,9 @@ class ChatServer:
     
     last_received_message = ""
     
-    def __init__(self):
+    def __init__(self, room:int, port:int):
+        self.room = room
+        self.port = port
         self.server_socket = None
         self.create_listening_server()
     
@@ -19,7 +23,7 @@ class ChatServer:
                                            socket.SOCK_STREAM)  # create a socket using TCP port and ipv4
         local_ip = '0.0.0.0'  # '127.0.0.1'
         # local_ip = '127.0.0.1'
-        local_port = 10319
+        local_port = self.port # 10319
         # this will allow you to immediately restart a TCP server
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # this makes the server listen to requests coming from other computers on the network
@@ -100,7 +104,12 @@ class ChatServer:
             print(client)
 
 if __name__ == "__main__":
-    x = ChatServer()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('room', type=int)
+    parser.add_argument('port', type=int)
+    
+    args = parser.parse_args()
+    x = ChatServer(room=args.room, port=args.port)
 
-# TODO: use argparse for port; remember to open a port range in AWS
+# DONE: use argparse for port; remember to open a port range in AWS
     
