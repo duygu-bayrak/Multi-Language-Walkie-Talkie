@@ -107,6 +107,11 @@ class GUI:
         return
         
     def initialize_socket(self):
+        # try:
+        #     self.socket_connected = False
+        #     self.client_socket.close()
+        # except:
+        #     print('not closing socket at initialize_socket()')
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # initialazing socket with TCP and IPv4
         remote_ip = 'ec2-34-195-127-232.compute-1.amazonaws.com' # 127.0.0.1'  # IP address
         # remote_ip = '127.0.0.1'
@@ -120,6 +125,19 @@ class GUI:
             print('socket connect failed')
         else:
             print('done initializing socket')
+        return
+    
+    def initialize_socket_and_listen(self):
+        # close existing socket so don't get duplicate messages
+        try:
+            self.socket_connected = False
+            # let listen thread to close; or just let it fail
+            self.client_socket.close()
+        except:
+            print('cannot close socket')
+        self.initialize_socket()
+        self.listen_for_incoming_messages_in_a_thread()
+        return
 
     def initialize_gui(self):  # GUI initializer
         self.root.title("Socket Chat")
@@ -137,7 +155,7 @@ class GUI:
     # function to recieve msg
     def receive_message_from_server(self, so):
         while self.socket_connected: # True:
-            buffer = so.recv(256)
+            buffer = so.recv(256) # thread crash when re-connect; just let it crash
             if not buffer:
                 break
             message = buffer.decode('utf-8')
@@ -198,7 +216,7 @@ class GUI:
     def display_push_to_talk(self):
         frame = Frame()
         # Label(frame, text='Push To Talk', font=("Serif", 12)).pack(side='top', anchor='w')
-        self.connect_button = Button(frame, text="Re-connect", width=10, command=self.initialize_socket).pack(side='left')
+        self.connect_button = Button(frame, text="Re-connect", width=10, command=self.initialize_socket_and_listen).pack(side='left')
         self.refresh_button = Button(frame, text="Refresh", width=10, command=self.on_refresh).pack(side='left')
         self.ptt_button = Button(frame, text="Push to Talk", width=15, command=self.on_push_to_talk)
         self.ptt_button.pack(side='left')
