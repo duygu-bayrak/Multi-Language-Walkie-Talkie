@@ -1,5 +1,5 @@
 mysql-connector-python
-playsound
+playsound==1.2.2
 boto3
 tqdm
 requests

@@ -13,6 +13,7 @@ import pyaudio
 import wave
 import time
 import wget
+import requests
 
 class GUI:
     client_socket = None
@@ -152,7 +153,7 @@ class GUI:
                                   args=(self.client_socket,))  # Create a thread for the send and receive in same time
         thread.start()
 
-    # function to recieve msg
+    # function to receive msg
     def receive_message_from_server(self, so):
         while self.socket_connected: # True:
             buffer = so.recv(256) # thread crash when re-connect; just let it crash
@@ -396,7 +397,8 @@ class GUI:
             def upload_audio_to_S3():
                 audio = open('./recording.wav',
                              'rb')  # note: this must match in the recording function...hard coded for now
-                bucket_name = "bucket-132423434"  # this is the bucket associated with the AWS credentials entered via argparse
+                #bucket_name = "bucket-132423434"  # this is the bucket associated with the AWS credentials entered via argparse
+                bucket_name = "audios.walkietalkie"
                 now = datetime.now()
                 s3_filename = now.strftime('recording_' + '%Y%m%d_%H%M%S' + '.wav')  # "recording.wav"
                 s3 = self.session.resource('s3')
@@ -473,10 +475,21 @@ class GUI:
                 print(file)
             
             # first, download file
-            # file_local = wget.download(file)
-            # if DEBUG:
-            #     print(file_local)
-            playsound(file) # TODO: playsound is not reliable; no spaces in filename?
+            url = file
+            # r = requests.get(url)
+            file_local = 'polly.mp3'
+            # with open(file_local, 'wb') as f:
+                # f.write(r.content)
+            wget.download(url, file_local)
+            if DEBUG:
+                print(file_local)
+                
+            def play():
+                playsound(file_local) # TODO: playsound is not reliable; no spaces in filename?
+                return
+            
+            thread_play = threading.Thread(target=play)
+            thread_play.start()
             
         except:
             print('could not connect to database or play audio')

@@ -16,7 +16,7 @@ aws_secret_access_key=aws_secret_access_key,
 aws_session_token=aws_session_token
 )
 
-bucket_name = "audio.walkietalkie" #name of your s3 bucket
+bucket_name = "audios.walkietalkie" #name of your s3 bucket
 
 audio = open('C:/Users/user/Desktop/transcribe-sample.mp3', 'rb')
 
