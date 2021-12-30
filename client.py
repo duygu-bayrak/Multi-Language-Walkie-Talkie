@@ -495,16 +495,15 @@ class GUI:
             #     playsound(file_local) # use playsound==1.2.2
             #     return
             
-            thread_play = threading.Thread(target=self.play, args=((file_local)))
+            thread_play = threading.Thread(target=self.play, args=())
             thread_play.start()
             
         except:
             print('could not connect to database or play audio')
-        
-        
         return
     
-    def play(self, file):
+    def play(self):
+        file = 'polly.wav'
         if self.OS == 'windows':
             playsound(file)
         elif self.OS == 'linux':
