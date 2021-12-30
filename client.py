@@ -557,7 +557,7 @@ class GUI:
         return
     
     def play_linux2(self, f):
-        chunk = 1024
+        chunk = 4096
         
         wf = wave.open(f,'rb')
         
