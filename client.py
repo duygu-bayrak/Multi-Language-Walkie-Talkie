@@ -25,7 +25,7 @@ class GUI:
                  microphone_index:int,
                  aws_access_key_id, aws_secret_access_key, aws_session_token):
         self.OS = OS
-        if OS=='linux':
+        if self.OS=='linux':
             import alsaaudio
         
         self.microphone_index = microphone_index
