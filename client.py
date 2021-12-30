@@ -20,10 +20,14 @@ class GUI:
     client_socket = None
     last_received_message = None
 
-    def __init__(self, master, userID:int, room:int, port:int,
+    def __init__(self, master, OS:str, userID:int, room:int, port:int,
                  original_language_ID:int, target_language_ID:int,
                  microphone_index:int,
                  aws_access_key_id, aws_secret_access_key, aws_session_token):
+        self.OS = OS
+        if OS=='linux':
+            import alsaaudio
+        
         self.microphone_index = microphone_index
         
         self.aws_access_key_id = aws_access_key_id
@@ -478,7 +482,7 @@ class GUI:
             # first, download file
             url = file
             # r = requests.get(url)
-            file_local = 'polly.mp3'
+            file_local = 'polly.wav' # for playsound(), extension should match S3 file
             # with open(file_local, 'wb') as f:
                 # f.write(r.content)
             if os.path.exists(file_local):
@@ -487,17 +491,62 @@ class GUI:
             if DEBUG:
                 print(file_local)
                 
-            def play():
-                playsound(file_local) # use playsound==1.2.2
-                return
+            # def play():
+            #     playsound(file_local) # use playsound==1.2.2
+            #     return
             
-            thread_play = threading.Thread(target=play)
+            thread_play = threading.Thread(target=self.play, args=((file_local)))
             thread_play.start()
             
         except:
             print('could not connect to database or play audio')
         
         
+        return
+    
+    def play(self, file):
+        if self.OS == 'windows':
+            playsound(file)
+        elif self.OS == 'linux':
+            device = 'default'
+            with wave.open(file, 'rb') as f:
+                self.play_linux(device, f)
+        else:
+            print('OS arg incorrect; should be windows/linux')
+        return
+
+    def play_linux(self, device, f):
+    
+        format = None
+    
+        # 8bit is unsigned in wav files
+        if f.getsampwidth() == 1:
+            format = alsaaudio.PCM_FORMAT_U8
+        # Otherwise we assume signed data, little endian
+        elif f.getsampwidth() == 2:
+            format = alsaaudio.PCM_FORMAT_S16_LE
+        elif f.getsampwidth() == 3:
+            format = alsaaudio.PCM_FORMAT_S24_3LE
+        elif f.getsampwidth() == 4:
+            format = alsaaudio.PCM_FORMAT_S32_LE
+        else:
+            raise ValueError('Unsupported format')
+    
+        periodsize = f.getframerate() // 8
+    
+        print('%d channels, %d sampling rate, format %d, periodsize %d\n' % (f.getnchannels(),
+                                                                             f.getframerate(),
+                                                                             format,
+                                                                             periodsize))
+    
+        device = alsaaudio.PCM(channels=f.getnchannels(), rate=f.getframerate(), format=format, periodsize=periodsize,
+                               device=device)
+    
+        data = f.readframes(periodsize)
+        while data:
+            # Read data from stdin
+            device.write(data)
+            data = f.readframes(periodsize)
         return
 
 
@@ -526,12 +575,13 @@ if __name__ == '__main__':
     parser.add_argument('--microphone_index', type=int)
     parser.add_argument('--original_language_ID', type=int, default=1)
     parser.add_argument('--target_language_ID', type=int, default=2)
-    
+    parser.add_argument('--OS', type=str, default='windows') # or linux
     
     args = parser.parse_args()
     
     root = Tk()
-    gui = GUI(root,userID=args.userID,
+    gui = GUI(root, OS=args.OS,
+              userID=args.userID,
               room=args.room,
               port=args.port,
               original_language_ID=args.original_language_ID,
