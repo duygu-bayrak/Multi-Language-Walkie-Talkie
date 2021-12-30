@@ -14,6 +14,7 @@ import wave
 import time
 import wget
 import requests
+import os
 
 class GUI:
     client_socket = None
@@ -198,7 +199,7 @@ class GUI:
     def display_chat_box(self):
         frame = Frame()
         Label(frame, text='Chat Box:', font=("Serif", 12)).pack(side='top', anchor='w')
-        self.chat_transcript_area = Text(frame, width=60, height=10, font=("Serif", 12))
+        self.chat_transcript_area = Text(frame, width=60, height=20, font=("Serif", 12))
         scrollbar = Scrollbar(frame, command=self.chat_transcript_area.yview, orient=VERTICAL)
         self.chat_transcript_area.config(yscrollcommand=scrollbar.set)
         self.chat_transcript_area.bind('<KeyPress>', lambda e: 'break')
@@ -343,7 +344,7 @@ class GUI:
                 INNER JOIN users u ON m.userID = u.id \
                 INNER JOIN languages l ON m.original_language=l.id \
                 INNER JOIN languages l2 ON m.target_language=l2.id \
-                WHERE m.room = " + str(self.room) # choose user id; then select messages from that user's room" # TODO: change 4 to self.room
+                WHERE m.room = " + str(self.room) + " ORDER BY m.created_at ASC" # choose user id; then select messages from that user's room" # TODO: change 4 to self.room
         # created_at, name, room, original_lang, target_lang, msg_original, msg_target, msg_speech
 
         try:
@@ -480,12 +481,14 @@ class GUI:
             file_local = 'polly.mp3'
             # with open(file_local, 'wb') as f:
                 # f.write(r.content)
-            wget.download(url, file_local)
+            if os.path.exists(file_local):
+                os.remove(file_local)
+            wget.download(url, file_local) # wget can't overwrite files
             if DEBUG:
                 print(file_local)
                 
             def play():
-                playsound(file_local) # TODO: playsound is not reliable; no spaces in filename?
+                playsound(file_local) # use playsound==1.2.2
                 return
             
             thread_play = threading.Thread(target=play)
