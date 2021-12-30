@@ -514,9 +514,10 @@ class GUI:
             import winsound
             winsound.PlaySound(file, winsound.SND_FILENAME)
         elif self.OS == 'linux':
-            device = 'default'
-            with wave.open(file, 'rb') as f:
-                self.play_linux(device, f)
+            # device = 'default'
+            # with wave.open(file, 'rb') as f:
+            #     self.play_linux(device, f)
+            self.play_linux2(file)
         else:
             print('OS arg incorrect; should be windows/linux')
         return
@@ -554,7 +555,30 @@ class GUI:
             device.write(data)
             data = f.readframes(periodsize)
         return
+    
+    def play_linux2(self, f):
+        chunk = 1024
+        
+        wf = wave.open(f,'rb')
+        
+        p = pyaudio.PyAudio()
 
+        stream = p.open(format=
+                        p.get_format_from_width(wf.getsampwidth()),
+                        channels=wf.getnchannels(),
+                        rate=wf.getframerate(),
+                        output=True)
+        
+        data = wf.readframes(chunk)
+
+        while data != '':
+            stream.write(data)
+            data = wf.readframes(chunk)
+
+        stream.close()
+        p.terminate()
+        
+        return
 
 # the mail function
 if __name__ == '__main__':
