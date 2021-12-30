@@ -219,7 +219,7 @@ class GUI:
     def display_chat_entry_box(self):
         frame = Frame()
         Label(frame, text='Enter message:', font=("Serif", 12)).pack(side='top', anchor='w')
-        self.enter_text_widget = Text(frame, width=60, height=3, font=("Serif", 20))
+        self.enter_text_widget = Text(frame, width=60, height=3, font=("Gothic", 20))
         self.enter_text_widget.pack(side='left', pady=15)
         self.enter_text_widget.bind('<Return>', self.on_enter_key_pressed)
         frame.pack(side='top')
