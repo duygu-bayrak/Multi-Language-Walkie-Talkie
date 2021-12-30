@@ -26,8 +26,12 @@ class GUI:
                  aws_access_key_id, aws_secret_access_key, aws_session_token):
         self.OS = OS
         print(self.OS)
-        if self.OS=='linux':
-            import alsaaudio
+        # if self.OS=='linux':
+        #     import alsaaudio
+        #     print('import alsaaudio')
+        # elif self.OS=='windows':
+        #     import winsound
+        #     print('import winsound')
         
         self.microphone_index = microphone_index
         
@@ -506,7 +510,9 @@ class GUI:
     def play(self):
         file = 'polly.wav'
         if self.OS == 'windows':
-            playsound(file)
+            # playsound(file)
+            import winsound
+            winsound.PlaySound(file, winsound.SND_FILENAME)
         elif self.OS == 'linux':
             device = 'default'
             with wave.open(file, 'rb') as f:
