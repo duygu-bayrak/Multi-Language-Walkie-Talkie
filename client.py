@@ -516,7 +516,7 @@ class GUI:
         return
 
     def play_linux(self, device, f):
-    
+        import alsaaudio
         format = None
     
         # 8bit is unsigned in wav files
