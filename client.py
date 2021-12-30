@@ -208,7 +208,7 @@ class GUI:
     def display_chat_box(self):
         frame = Frame()
         Label(frame, text='Chat Box:', font=("Serif", 12)).pack(side='top', anchor='w')
-        self.chat_transcript_area = Text(frame, width=60, height=20, font=("Serif", 12))
+        self.chat_transcript_area = Text(frame, width=60, height=20, font=("Gothic", 20)) # Gothic works on jetson nano
         scrollbar = Scrollbar(frame, command=self.chat_transcript_area.yview, orient=VERTICAL)
         self.chat_transcript_area.config(yscrollcommand=scrollbar.set)
         self.chat_transcript_area.bind('<KeyPress>', lambda e: 'break')
@@ -219,7 +219,7 @@ class GUI:
     def display_chat_entry_box(self):
         frame = Frame()
         Label(frame, text='Enter message:', font=("Serif", 12)).pack(side='top', anchor='w')
-        self.enter_text_widget = Text(frame, width=60, height=3, font=("Serif", 12))
+        self.enter_text_widget = Text(frame, width=60, height=3, font=("Serif", 20))
         self.enter_text_widget.pack(side='left', pady=15)
         self.enter_text_widget.bind('<Return>', self.on_enter_key_pressed)
         frame.pack(side='top')
@@ -299,7 +299,7 @@ class GUI:
         all_message_blocks = self.refresh()
         
         for message_block in all_message_blocks:
-            self.chat_transcript_area.insert('end', message_block + '\n')
+            self.chat_transcript_area.insert('end', message_block + '\n\n')
 
         self.chat_transcript_area.yview(END)
         
@@ -366,7 +366,7 @@ class GUI:
                     print(x)
             for x in result:
                 message_group = []
-                message_group.append(x[0].strftime(x[1] + ": " + "%m/%d/%Y %H:%M:%S")) # name: date-time
+                message_group.append(x[0].strftime(x[1] + ": " + "%m/%d/%Y %H:%M:%S")) # name: date-time # TODO: convert to local time
                 message_group.append(parse_string(x[3]) + ": " + parse_string(x[5]))  # original_language: msg_original
                 message_group.append(parse_string(x[4]) + ": " + parse_string(x[6]))  # target_language: msg_target
                 all_message_blocks.append('\n'.join(message_group))
