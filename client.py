@@ -345,7 +345,7 @@ class GUI:
         #     self.cursor.close()
         
         
-        query = "SELECT m.created_at, u.name, m.room, \
+        query = "SELECT CONVERT_TZ(m.created_at, 'UTC', 'Asia/Taipei'), u.name, m.room, \
                 l.transcribe_lang_code AS original_lang, \
                 l2.transcribe_lang_code AS target_lang, \
                 m.msg_original, m.msg_target, m.msg_speech \
