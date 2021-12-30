@@ -465,7 +465,7 @@ class GUI:
         return
     
     def on_play_last(self, DEBUG=True):
-        query = "SELECT id, msg_speech FROM messages WHERE room = 456 ORDER BY created_at DESC LIMIT 1" # get most recent audio
+        query = "SELECT id, msg_speech FROM messages WHERE room = " + str(self.room) + " ORDER BY created_at DESC LIMIT 1" # get most recent audio
         try:
             self.cursor = self.database.cursor()
             self.cursor.execute(query)
